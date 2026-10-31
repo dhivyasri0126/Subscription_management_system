@@ -80,7 +80,7 @@ h1, h2, p { font-family: var(--font); }
   align-items: center;
   gap: 12px;
   font-weight: 700;
-  font-size: 1.08rem;
+  font-size: 1.15rem;
   color: #fff;
   letter-spacing: -0.01em;
 }
@@ -108,10 +108,12 @@ h1, h2, p { font-family: var(--font); }
   color: #a9bfcf;
   margin: 0 0 34px;
   max-width: 38ch;
+  font-size: 1.08rem;
+  line-height: 1.7;
   animation: rise 0.7s var(--ease) 0.08s both;
 }
 
-.aside-foot { font-size: 0.8rem; color: #7f97aa; }
+.aside-foot { font-size: 0.9rem; color: #7f97aa; }
 
 /* Renewal cards: the one orchestrated moment */
 .renewal-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
@@ -135,11 +137,11 @@ h1, h2, p { font-family: var(--font); }
 .renewal-soon { --tone: var(--soon); }
 .renewal-late { --tone: var(--late); }
 
-.renewal strong { display: block; font-size: 0.95rem; color: #fff; }
-.renewal span { font-size: 0.8rem; color: #9fb5c6; }
+.renewal strong { display: block; font-size: 1rem; color: #fff; }
+.renewal span { font-size: 0.9rem; color: #9fb5c6; }
 .renewal em {
   font-style: normal;
-  font-size: 0.78rem;
+  font-size: 0.88rem;
   font-weight: 700;
   white-space: nowrap;
   color: var(--tone);
@@ -179,11 +181,11 @@ h1, h2, p { font-family: var(--font); }
 .auth-card {
   position: relative;
   width: 100%;
-  max-width: 460px;
+  max-width: 520px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 18px;
-  padding: 40px 38px 34px;
+  padding: 44px 42px 38px;
   box-shadow:
     0 1px 2px rgba(14, 34, 52, 0.05),
     0 24px 60px -24px rgba(14, 34, 52, 0.28);
@@ -200,33 +202,35 @@ h1, h2, p { font-family: var(--font); }
 
 .auth-card h1 {
   margin: 0 0 6px;
-  font-size: 1.75rem;
+  font-size: clamp(2rem, 3vw, 2.25rem);
   line-height: 1.15;
   letter-spacing: -0.025em;
   font-weight: 800;
   color: var(--ink);
   text-align: left;
 }
-.auth-sub { margin: 0 0 26px; color: var(--muted); font-size: 0.95rem; text-align: left; }
+.auth-sub { margin: 0 0 28px; color: var(--muted); font-size: 1.08rem; line-height: 1.6; text-align: left; }
 
 /* ---------- Form ---------- */
-.field { display: grid; gap: 7px; margin-bottom: 16px; text-align: left; }
-.field label { font-size: 0.86rem; font-weight: 600; color: var(--ink-2); }
+.field { display: grid; gap: 8px; margin-bottom: 19px; text-align: left; }
+.field label { font-size: 1rem; font-weight: 700; color: var(--ink-2); }
 
-input, select {
+.auth-shell input, .auth-shell select {
   width: 100%;
+  min-height: 50px;
   font: inherit;
-  padding: 12px 14px;
+  font-size: 1rem;
+  padding: 13px 15px;
   border: 1.5px solid var(--line);
   border-radius: var(--radius);
   background: #fbfcfd;
   color: var(--text);
   transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
 }
-input::placeholder { color: #9aa8b5; }
-input:hover, select:hover { border-color: #b9c8d4; }
+.auth-shell input::placeholder { color: #9aa8b5; }
+.auth-shell input:hover, .auth-shell select:hover { border-color: #b9c8d4; }
 
-input:focus, select:focus {
+.auth-shell input:focus, .auth-shell select:focus {
   outline: none;
   background: #fff;
   border-color: var(--accent);
@@ -239,29 +243,29 @@ button:focus-visible, a:focus-visible {
 
 .has-error input, .has-error select { border-color: var(--late); }
 .has-error input:focus, .has-error select:focus { box-shadow: 0 0 0 4px rgba(226, 85, 77, 0.15); }
-.field-error { color: #c2362f; font-size: 0.82rem; animation: fade 0.25s ease both; }
+.field-error { color: #c2362f; font-size: 0.92rem; animation: fade 0.25s ease both; }
 
 .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 
 .pw-wrap { position: relative; }
-.pw-wrap input { padding-right: 46px; }
+.pw-wrap input { padding-right: 50px; }
 .pw-toggle {
   position: absolute;
   right: 6px; top: 50%;
   transform: translateY(-50%);
   display: grid; place-items: center;
-  width: 34px; height: 34px;
+  width: 38px; height: 38px;
   background: none; border: 0; border-radius: 8px;
   color: var(--muted);
   cursor: pointer;
   transition: color 0.15s, background 0.15s;
 }
 .pw-toggle:hover { color: var(--accent-dark); background: var(--accent-soft); }
-.pw-toggle svg { width: 19px; height: 19px; }
+.pw-toggle svg { width: 21px; height: 21px; }
 
 /* Role switcher with sliding thumb */
 .segmented { border: 0; padding: 0; margin: 0 0 22px; min-width: 0; }
-.segmented legend { font-size: 0.86rem; font-weight: 600; color: var(--ink-2); margin-bottom: 8px; padding: 0; }
+.segmented legend { font-size: 1rem; font-weight: 700; color: var(--ink-2); margin-bottom: 9px; padding: 0; }
 .segmented-track {
   --i: 0;
   position: relative;
@@ -286,9 +290,9 @@ button:focus-visible, a:focus-visible {
   position: relative;
   z-index: 1;
   text-align: center;
-  padding: 9px 6px;
-  font-size: 0.9rem;
-  font-weight: 600;
+  padding: 11px 6px;
+  font-size: 1rem;
+  font-weight: 700;
   cursor: pointer;
   color: var(--muted);
   border-radius: 9px;
@@ -307,7 +311,7 @@ button:focus-visible, a:focus-visible {
   color: #9c2a23;
   padding: 11px 14px;
   border-radius: var(--radius);
-  font-size: 0.9rem;
+  font-size: 1rem;
   margin-bottom: 16px;
   animation: shake 0.45s ease both;
 }
@@ -319,7 +323,8 @@ button:focus-visible, a:focus-visible {
   justify-content: center;
   gap: 10px;
   width: 100%;
-  padding: 13px 16px;
+  min-height: 52px;
+  padding: 14px 18px;
   border: 0;
   border-radius: var(--radius);
   background: linear-gradient(135deg, var(--accent), var(--accent-dark));
@@ -351,14 +356,14 @@ button:focus-visible, a:focus-visible {
   margin: 16px 0 0;
   padding: 10px 12px;
   text-align: center;
-  font-size: 0.8rem;
+  font-size: 0.92rem;
   color: var(--muted);
   background: var(--paper);
   border: 1px dashed var(--line);
   border-radius: var(--radius);
 }
 
-.auth-footer { margin: 24px 0 0; text-align: center; font-size: 0.92rem; color: var(--muted); }
+.auth-footer { margin: 25px 0 0; text-align: center; font-size: 1rem; line-height: 1.6; color: var(--muted); }
 .auth-footer a { color: var(--accent-dark); font-weight: 700; text-decoration: none; }
 .auth-footer a:hover { text-decoration: underline; text-underline-offset: 3px; }
 
@@ -397,7 +402,7 @@ button:focus-visible, a:focus-visible {
 }
 
 @media (max-width: 520px) {
-  .auth-card { padding: 30px 20px 26px; border-radius: 16px; }
+  .auth-card { padding: 32px 22px 28px; border-radius: 16px; }
   .auth-card::before { left: 20px; right: 20px; }
   .row-2 { grid-template-columns: 1fr; gap: 0; }
 }

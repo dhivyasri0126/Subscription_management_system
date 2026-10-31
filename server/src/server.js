@@ -4,7 +4,7 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { pool } from "./db.js";
 import authRoutes from "./routes/auth.js";
-import adminRoutes from "./routes/admin.js";
+import adminRoutes from "./routes/adminroute.js";
 
 const app = express();
 

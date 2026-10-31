@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../authentication/AuthContext";
 import { useNavigate } from "react-router-dom";
-
 
 import {
   getAdminDashboard,
@@ -36,48 +35,71 @@ const menu = [
   { id: "reports", name: "Finance & Reports", icon: "▥" }
 ];
 
+// Columns shown in each table.
+// FIX: quotations/subscriptions now show customer and plan NAMES instead of raw ids.
 const fields = {
-  customers: [
-    "name", "email", "phone", "address", "business_type"
-  ],
-  staff: [
-    "name", "email", "status"
-  ],
-  products: [
-    "name", "type", "sales_price",
-    "cost_price", "tax_id", "notes", "status"
-  ],
-  taxes: [
-    "name", "rate", "description", "status"
-  ],
+  customers: ["name", "email", "phone", "address", "business_type"],
+  staff: ["name", "email", "status"],
+  products: ["name", "type", "sales_price", "cost_price", "tax_id", "notes", "status"],
+  taxes: ["name", "rate", "description", "status"],
   plans: [
-    "name", "price", "billing_period",
-    "min_quantity", "available_from", "available_to",
-    "auto_close_on_end", "allow_early_close", "allow_pause",
+    "name", "price", "billing_period", "min_quantity", "available_from",
+    "available_to", "auto_close_on_end", "allow_early_close", "allow_pause",
     "allow_renew", "status", "assigned_staff_count"
   ],
   quotations: [
-    "subscription_number", "customer_id", "plan_id", "status",
+    "subscription_number", "customer_name", "plan_name", "status",
     "start_date", "expiry_date"
   ],
   subscriptions: [
-    "subscription_number", "customer_id",
-    "plan_id", "status", "start_date", "expiry_date"
+    "subscription_number", "customer_name", "plan_name", "status",
+    "start_date", "expiry_date"
   ],
   invoices: [
-    "invoice_number", "customer_name", "subscription_id",
-    "invoice_date", "due_date", "total_amount", "amount_paid", "status",
-    "receipt_number"
+    "invoice_number", "customer_name", "subscription_id", "invoice_date",
+    "due_date", "total_amount", "amount_paid", "status", "receipt_number"
   ],
-  payments: [
-    "invoice_id", "method", "amount",
-    "payment_date", "reference", "receipt_number"
-  ],
+  payments: ["invoice_id", "method", "amount", "payment_date", "reference", "receipt_number"],
   discounts: [
-    "code", "type", "value",
-    "start_date", "end_date", "usage_limit", "status"
+    "name", "type", "value", "min_purchase_amount", "min_quantity",
+    "start_date", "end_date", "usage_limit", "times_used", "status"
   ]
 };
+
+// FIX: status values must match what the database allows.
+//   products: active | archived     plans: active | paused | closed
+const STATUS_OPTIONS = {
+  products: ["active", "archived"],
+  plans: ["active", "paused", "closed"],
+  subscriptions: ["draft", "quotation", "confirmed", "active", "closed"],
+  quotations: ["draft", "quotation", "confirmed", "active", "closed"]
+};
+const PRODUCT_TYPES = ["service", "goods", "addon"];
+const THEME_STORAGE_KEY = "sms_admin_theme";
+
+function getInitialTheme() {
+  try {
+    const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+    if (savedTheme === "light" || savedTheme === "dark") return savedTheme;
+  } catch {
+    // Theme preference storage is optional; fall back to the system preference.
+  }
+  const systemTheme = window.matchMedia?.("(prefers-color-scheme: dark)");
+  return systemTheme?.matches ? "dark" : "light";
+}
+
+const DATE_KEY = /(_date|^available_from|^available_to)$/;
+const PLAN_FLAGS = ["auto_close_on_end", "allow_early_close", "allow_pause", "allow_renew"];
+const NUMBER_FIELDS = ["price", "cost_price", "rate", "value", "amount", "min_purchase_amount", "usage_limit", "min_quantity", "payment_term_days"];
+const MONEY_FIELDS = ["price", "cost_price", "rate", "value", "amount", "min_purchase_amount"];
+const DATE_FIELDS = [
+  "available_from", "available_to", "start_date", "expiry_date",
+  "due_date", "payment_date", "end_date"
+];
+const SELECT_FIELDS = [
+  "customer_id", "plan_id", "assigned_staff_id", "invoice_id", "subscription_id",
+  "tax_id", "status", "billing_period", "type", "method"
+];
 
 const currency = value =>
   new Intl.NumberFormat("en-IN", {
@@ -86,10 +108,58 @@ const currency = value =>
     maximumFractionDigits: 0
   }).format(Number(value || 0));
 
+// FIX: show booleans / ISO timestamps readably instead of raw values.
+function formatCell(value) {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleString("en-IN");
+  }
+  return String(value);
+}
+
+// FIX: <input type="date"> only accepts YYYY-MM-DD. Editing used to show empty
+// dates, which then got saved as NULL and tripped "dates required" errors.
+function normalizeForEdit(record) {
+  const next = { ...record };
+  Object.keys(next).forEach(key => {
+    if (DATE_KEY.test(key) && typeof next[key] === "string") {
+      next[key] = next[key].slice(0, 10);
+    }
+    if (next[key] === null) next[key] = "";
+  });
+  return next;
+}
+
+function defaultFormFor(active) {
+  switch (active) {
+    case "plans":
+      return {
+        status: "active", min_quantity: 1, auto_close_on_end: false,
+        allow_early_close: false, allow_pause: false, allow_renew: true
+      };
+    case "products":
+      return { status: "active", type: "service" };
+    case "subscriptions":
+      return { status: "draft", payment_term_days: 0 };
+    case "payments":
+      return { method: "bank_transfer" };
+    case "discounts":
+      return {
+        type: "fixed", status: "active", min_purchase_amount: 0, min_quantity: 0,
+        start_date: new Date().toISOString().slice(0, 10)
+      };
+    default:
+      return { status: "active" };
+  }
+}
+
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
+  const [theme, setTheme] = useState(getInitialTheme);
   const [active, setActive] = useState("dashboard");
   const [dashboard, setDashboard] = useState({});
   const [records, setRecords] = useState([]);
@@ -113,6 +183,34 @@ export default function AdminDashboard() {
   const [assignmentError, setAssignmentError] = useState("");
   const [notice, setNotice] = useState("");
 
+  // FIX: ignore responses from a previous tab so slow requests can't
+  // overwrite the table of the tab you are looking at now.
+  const requestId = useRef(0);
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(THEME_STORAGE_KEY)) return undefined;
+    } catch {
+      return undefined;
+    }
+
+    const systemTheme = window.matchMedia?.("(prefers-color-scheme: dark)");
+    if (!systemTheme) return undefined;
+    const syncSystemTheme = event => setTheme(event.matches ? "dark" : "light");
+    systemTheme.addEventListener?.("change", syncSystemTheme);
+    return () => systemTheme.removeEventListener?.("change", syncSystemTheme);
+  }, []);
+
+  function toggleTheme() {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+    } catch {
+      // Keep the theme active for this visit when storage is unavailable.
+    }
+  }
+
   const currentFields = fields[active] || [];
   const formFieldsByResource = {
     customers: ["name", "email", "password", "phone", "address", "business_type"],
@@ -125,10 +223,7 @@ export default function AdminDashboard() {
       "allow_renew", "status"
     ],
     quotations: editingRecord
-      ? [
-          "customer_id", "plan_id", "assigned_staff_id", "status",
-          "start_date", "expiry_date", "payment_term_days"
-        ]
+      ? ["customer_id", "plan_id", "assigned_staff_id", "status", "start_date", "expiry_date", "payment_term_days"]
       : ["customer_id", "plan_id"],
     subscriptions: [
       "customer_id", "plan_id", "assigned_staff_id", "status", "start_date",
@@ -136,37 +231,45 @@ export default function AdminDashboard() {
     ],
     invoices: ["subscription_id", "due_date"],
     payments: ["invoice_id", "method", "amount", "payment_date", "reference", "note"],
-    discounts: ["code", "name", "type", "value", "start_date", "end_date", "usage_limit", "status"]
+    discounts: [
+      "name", "type", "value", "min_purchase_amount", "min_quantity",
+      "start_date", "end_date", "usage_limit", "status"
+    ]
   };
   const formFields = formFieldsByResource[active] || currentFields;
 
-  async function loadData() {
+  async function loadData(tab = active) {
+    const myRequest = ++requestId.current;
     setLoading(true);
     setError("");
 
     try {
-      if (active === "dashboard" || active === "reports") {
+      if (tab === "dashboard" || tab === "reports") {
         const data = await getAdminDashboard();
-        setDashboard(data);
+        if (myRequest === requestId.current) setDashboard(data);
       } else {
-        const data = await getAdminResource(active, search);
+        const data = await getAdminResource(tab, search);
+        if (myRequest !== requestId.current) return;
         setRecords(data.items || []);
         if (
           ["customers", "staff", "products", "taxes", "plans", "quotations",
-            "subscriptions", "invoices", "payments"].includes(active)
+            "subscriptions", "invoices", "payments"].includes(tab)
         ) {
-          setLookups(await getAdminLookups());
+          const lookupData = await getAdminLookups();
+          if (myRequest === requestId.current) setLookups(lookupData);
         }
       }
     } catch (err) {
-      setError(err.message);
+      if (myRequest === requestId.current) setError(err.message);
     } finally {
-      setLoading(false);
+      if (myRequest === requestId.current) setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadData();
+    setRecords([]); // FIX: don't render the previous tab's rows under new columns
+    loadData(active);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
   async function handleSearch(e) {
@@ -187,9 +290,7 @@ export default function AdminDashboard() {
         : await getPlanStaff(plan.id);
       setPlanStaff(data.staff || []);
       setSelectedStaffIds(
-        (data.staff || [])
-          .filter(staff => staff.assigned)
-          .map(staff => String(staff.id))
+        (data.staff || []).filter(staff => staff.assigned).map(staff => String(staff.id))
       );
     } catch (err) {
       setAssignmentError(err.message);
@@ -233,7 +334,10 @@ export default function AdminDashboard() {
 
     try {
       const payload = { ...form };
-      if (active === "customers" || active === "staff") {
+
+      // FIX: only check the password when CREATING. Editing a customer/staff
+      // member has no password field, so this check used to block every edit.
+      if (!editingRecord && (active === "customers" || active === "staff")) {
         const password = payload.password || "";
         if (
           password.length < 9 ||
@@ -252,7 +356,7 @@ export default function AdminDashboard() {
         setNotice("Record updated successfully.");
       } else if (active === "invoices") {
         await generateInvoice(payload);
-        setNotice("Invoice generated successfully.");
+        setNotice("Invoice generated as a draft. Confirm it to accept payments.");
       } else {
         await createAdminResource(active, payload);
         setNotice("Record created successfully.");
@@ -261,11 +365,10 @@ export default function AdminDashboard() {
       setForm({});
       setShowForm(false);
       setEditingRecord(null);
-
+      setLoading(false);
       await loadData();
     } catch (err) {
       setError(err.message);
-    } finally {
       setLoading(false);
     }
   }
@@ -274,26 +377,7 @@ export default function AdminDashboard() {
     setError("");
     setNotice("");
     setEditingRecord(null);
-    setForm(
-      active === "staff" || active === "customers"
-        ? { status: "active" }
-        : active === "plans"
-          ? {
-              status: "active",
-              min_quantity: 1,
-              auto_close_on_end: false,
-              allow_early_close: false,
-              allow_pause: false,
-              allow_renew: true
-            }
-          : active === "subscriptions"
-            ? { status: "draft", payment_term_days: 0 }
-            : active === "payments"
-              ? { method: "bank_transfer" }
-              : active === "discounts"
-                ? { type: "fixed", status: "active" }
-                : { status: "active" }
-    );
+    setForm(defaultFormFor(active));
     setShowForm(true);
   }
 
@@ -301,7 +385,7 @@ export default function AdminDashboard() {
     setError("");
     setNotice("");
     setEditingRecord(record);
-    setForm({ ...record });
+    setForm(normalizeForEdit(record));
     setShowForm(true);
   }
 
@@ -325,7 +409,11 @@ export default function AdminDashboard() {
     setNotice("");
     try {
       await runInvoiceAction(invoice.id, action);
-      setNotice(`Invoice ${invoice.invoice_number} ${action === "send" ? "marked as sent" : `${action}ed`}.`);
+      setNotice(
+        `Invoice ${invoice.invoice_number} ${
+          action === "send" ? "marked as sent" : action === "confirm" ? "confirmed" : "cancelled"
+        }.`
+      );
       await loadData();
     } catch (err) {
       setError(err.message);
@@ -354,41 +442,142 @@ export default function AdminDashboard() {
     navigate("/login", { replace: true });
   }
 
-  const stats = [
-    {
-      label: "Total Customers",
-      value: dashboard.customers ?? "—",
-      icon: "♙"
-    },
-    {
-      label: "Active Subscriptions",
-      value: dashboard.activeSubscriptions ?? "—",
-      icon: "↻"
-    },
-    {
-      label: "Pending Quotations",
-      value: dashboard.pendingQuotations ?? "—",
-      icon: "▤"
-    },
-    {
-      label: "Revenue Collected",
-      value: currency(dashboard.revenueCollected),
-      icon: "₹"
-    },
-    {
-      label: "Outstanding Balance",
-      value: currency(dashboard.outstandingBalance),
-      icon: "◷"
-    },
-    {
-      label: "Overdue Invoices",
-      value: dashboard.overdueInvoices ?? "—",
-      icon: "!"
+  // Options for every <select> in the form.
+  function renderOptions(field) {
+    switch (field) {
+      case "customer_id":
+        return lookups.customers.map(option => (
+          <option key={option.id} value={option.id}>{option.name} ({option.email})</option>
+        ));
+      case "plan_id":
+        return lookups.plans.map(option => (
+          <option key={option.id} value={option.id}>
+            {option.name} — {currency(option.price)} / {option.billing_period}
+          </option>
+        ));
+      case "assigned_staff_id":
+        return (
+          <>
+            <option value="">Unassigned</option>
+            {lookups.staff
+              .filter(option =>
+                !form.plan_id ||
+                option.assigned_plan_ids.some(planId => String(planId) === String(form.plan_id))
+              )
+              .map(option => (
+                <option key={option.id} value={option.id}>{option.name}</option>
+              ))}
+          </>
+        );
+      case "invoice_id":
+        return lookups.invoices.map(option => (
+          <option key={option.id} value={option.id}>
+            {option.invoice_number} — balance {currency(Number(option.total_amount) - Number(option.amount_paid))}
+          </option>
+        ));
+      case "subscription_id":
+        return lookups.subscriptions.map(option => (
+          <option key={option.id} value={option.id}>
+            {option.subscription_number} — {option.customer_name} / {option.plan_name}
+          </option>
+        ));
+      case "tax_id":
+        return (
+          <>
+            <option value="">No tax</option>
+            {lookups.taxes.map(option => (
+              <option key={option.id} value={option.id}>{option.name} ({option.rate}%)</option>
+            ))}
+          </>
+        );
+      case "status":
+        return (STATUS_OPTIONS[active] || ["active", "inactive"]).map(value => (
+          <option key={value} value={value}>{value}</option>
+        ));
+      case "billing_period":
+        return ["daily", "weekly", "monthly", "yearly"].map(value => (
+          <option key={value} value={value}>{value}</option>
+        ));
+      case "type":
+        return (active === "products" ? PRODUCT_TYPES : ["fixed", "percentage"]).map(value => (
+          <option key={value} value={value}>{value}</option>
+        ));
+      case "method":
+        return ["bank_transfer", "upi", "card", "cash", "cheque", "other"].map(value => (
+          <option key={value} value={value}>{value.replaceAll("_", " ")}</option>
+        ));
+      default:
+        return null;
     }
+  }
+
+  function selectDefault(field) {
+    if (field === "status") {
+      if (active === "subscriptions") return "draft";
+      return "active";
+    }
+    if (field === "method") return "bank_transfer";
+    if (field === "type" && active === "products") return "service";
+    return "";
+  }
+
+  const isAccountForm = active === "staff" || active === "customers";
+
+  function renderInput(field) {
+    const isPassword = isAccountForm && field === "password";
+    return (
+      <input
+        type={
+          isPassword ? "password"
+            : field === "email" ? "email"
+              : NUMBER_FIELDS.includes(field) ? "number"
+                : DATE_FIELDS.includes(field) ? "date"
+                  : "text"
+        }
+        min={
+          field === "min_quantity" && active === "plans" ? 1
+            : NUMBER_FIELDS.includes(field) ? 0
+              : undefined
+        }
+        step={
+          MONEY_FIELDS.includes(field) ? "0.01"
+            : ["min_quantity", "usage_limit", "payment_term_days"].includes(field) ? "1"
+              : undefined
+        }
+        required={
+          (isAccountForm && ["name", "email", "password"].includes(field)) ||
+          (active === "plans" && ["name", "price", "min_quantity", "available_from"].includes(field)) ||
+          (active === "taxes" && ["name", "rate"].includes(field)) ||
+          (active === "products" && ["name", "sales_price"].includes(field)) ||
+          (active === "discounts" && ["name", "value", "start_date"].includes(field)) ||
+          (active === "payments" && field === "amount")
+        }
+        minLength={isPassword ? 9 : undefined}
+        autoComplete={isPassword ? "new-password" : undefined}
+        title={isPassword ? "Use more than 8 characters with uppercase, lowercase, and a special character." : undefined}
+        value={form[field] ?? ""}
+        onChange={e => setForm({ ...form, [field]: e.target.value })}
+        placeholder={`Enter ${field.replaceAll("_", " ")}`}
+      />
+    );
+  }
+
+  const stats = [
+    { label: "Total Customers", value: dashboard.customers ?? "—", icon: "♙" },
+    { label: "Active Subscriptions", value: dashboard.activeSubscriptions ?? "—", icon: "↻" },
+    { label: "Pending Quotations", value: dashboard.pendingQuotations ?? "—", icon: "▤" },
+    { label: "Revenue Collected", value: currency(dashboard.revenueCollected), icon: "₹" },
+    { label: "Outstanding Balance", value: currency(dashboard.outstandingBalance), icon: "◷" },
+    { label: "Overdue Invoices", value: dashboard.overdueInvoices ?? "—", icon: "!" }
   ];
 
+  const showNoPayableInvoices =
+    showForm && active === "payments" && !editingRecord && lookups.invoices.length === 0;
+  const showNoBillableSubs =
+    showForm && active === "invoices" && lookups.subscriptions.length === 0;
+
   return (
-    <div className="admin-layout">
+    <div className="admin-layout" data-theme={theme}>
 
       {/* SIDEBAR */}
 
@@ -396,7 +585,6 @@ export default function AdminDashboard() {
 
         <div className="admin-brand">
           <div className="brand-logo">S</div>
-
           <div>
             <h2>Subscription</h2>
             <span>Manager</span>
@@ -409,13 +597,14 @@ export default function AdminDashboard() {
           {menu.map(item => (
             <button
               key={item.id}
-              className={
-                active === item.id ? "nav-item active" : "nav-item"
-              }
+              className={active === item.id ? "nav-item active" : "nav-item"}
               onClick={() => {
                 setActive(item.id);
                 setShowForm(false);
+                setEditingRecord(null);
                 setSearch("");
+                setError("");
+                setNotice("");
               }}
             >
               <span className="nav-icon">{item.icon}</span>
@@ -429,7 +618,6 @@ export default function AdminDashboard() {
             <div className="profile-avatar">
               {(user?.name || "A").charAt(0).toUpperCase()}
             </div>
-
             <div>
               <strong>{user?.name || "Admin"}</strong>
               <small>Administrator</small>
@@ -450,14 +638,24 @@ export default function AdminDashboard() {
         <header className="admin-header">
           <div>
             <span>Subscription Manager / </span>
-            <strong>
-              {menu.find(item => item.id === active)?.name}
-            </strong>
+            <strong>{menu.find(item => item.id === active)?.name}</strong>
           </div>
 
-          <div className="header-user">
-            <span className="online-dot"></span>
-            {user?.email}
+          <div className="header-controls">
+            <button
+              type="button"
+              className="theme-toggle"
+              onClick={toggleTheme}
+              aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+              aria-pressed={theme === "dark"}
+            >
+              <span aria-hidden="true">{theme === "dark" ? "☀" : "◐"}</span>
+              {theme === "dark" ? "Light mode" : "Dark mode"}
+            </button>
+            <div className="header-user">
+              <span className="online-dot"></span>
+              {user?.email}
+            </div>
           </div>
         </header>
 
@@ -473,9 +671,7 @@ export default function AdminDashboard() {
                   : menu.find(item => item.id === active)?.name}
               </h1>
 
-              <p>
-                Manage your business from one place.
-              </p>
+              <p>Manage your business from one place.</p>
             </div>
 
             {currentFields.length > 0 && active !== "reports" && (
@@ -499,11 +695,7 @@ export default function AdminDashboard() {
             )}
           </div>
 
-          {error && (
-            <div className="error-message">
-              {error}
-            </div>
-          )}
+          {error && <div className="error-message">{error}</div>}
           {notice && <div className="success-message">{notice}</div>}
 
           {/* DASHBOARD */}
@@ -515,11 +707,8 @@ export default function AdminDashboard() {
                   <div className="stat-card" key={stat.label}>
                     <div className="stat-top">
                       <span>{stat.label}</span>
-                      <div className="stat-icon">
-                        {stat.icon}
-                      </div>
+                      <div className="stat-icon">{stat.icon}</div>
                     </div>
-
                     <h2>{stat.value}</h2>
                     <small>Database summary</small>
                   </div>
@@ -528,14 +717,13 @@ export default function AdminDashboard() {
 
               <div className="dashboard-panel">
                 <h3>Business Overview</h3>
-
                 <p>
                   Monitor customers, subscriptions, payments
                   and invoices using the navigation menu.
                 </p>
-
                 {loading && <p>Loading dashboard...</p>}
               </div>
+
               {active === "reports" && (
                 <div className="dashboard-panel report-panel">
                   <h3>Monthly revenue</h3>
@@ -548,10 +736,12 @@ export default function AdminDashboard() {
                         <tbody>
                           {dashboard.monthlyRevenue.map(row => (
                             <tr key={row.month}>
-                              <td>{new Date(`${row.month}T00:00:00`).toLocaleDateString("en-IN", {
-                                month: "long",
-                                year: "numeric"
-                              })}</td>
+                              <td>
+                                {new Date(`${String(row.month).slice(0, 10)}T00:00:00`).toLocaleDateString("en-IN", {
+                                  month: "long",
+                                  year: "numeric"
+                                })}
+                              </td>
                               <td>{currency(row.revenue)}</td>
                             </tr>
                           ))}
@@ -566,18 +756,27 @@ export default function AdminDashboard() {
             </>
           )}
 
-          {/* CREATE FORM */}
+          {/* CREATE / EDIT FORM */}
 
           {showForm && (
             <form className="admin-form" onSubmit={handleCreate}>
               <h3>
-                {editingRecord
-                  ? "Edit"
-                  : active === "invoices"
-                    ? "Generate"
-                    : "Add"}{" "}
+                {editingRecord ? "Edit" : active === "invoices" ? "Generate" : "Add"}{" "}
                 {menu.find(item => item.id === active)?.name}
               </h3>
+
+              {showNoPayableInvoices && (
+                <div className="error-message">
+                  No payable invoices. Generate an invoice, then use "Confirm" on the
+                  Invoices page before recording a payment.
+                </div>
+              )}
+              {showNoBillableSubs && (
+                <div className="error-message">
+                  No confirmed or active subscriptions to invoice. Confirm or activate a
+                  subscription first (with start and expiry dates).
+                </div>
+              )}
 
               <div className="form-grid">
                 {formFields
@@ -592,195 +791,27 @@ export default function AdminDashboard() {
                     <label key={field}>
                       {field.replaceAll("_", " ").toUpperCase()}
 
-                      {[
-                        "customer_id",
-                        "plan_id",
-                        "assigned_staff_id",
-                        "invoice_id",
-                        "subscription_id",
-                        "tax_id",
-                        "status",
-                        "billing_period",
-                        "type",
-                        "method"
-                      ].includes(field) ? (
+                      {SELECT_FIELDS.includes(field) ? (
                         <select
                           required={
                             ["customer_id", "plan_id", "subscription_id"].includes(field) ||
                             (active === "payments" && field === "invoice_id") ||
                             (active === "plans" && field === "billing_period")
                           }
-                          value={
-                            form[field] ??
-                            (field === "status"
-                              ? active === "subscriptions"
-                                ? "draft"
-                                : "active"
-                              : field === "method"
-                                ? "bank_transfer"
-                                : "")
-                          }
-                          onChange={e =>
-                            setForm({ ...form, [field]: e.target.value })
-                          }
+                          value={form[field] ?? selectDefault(field)}
+                          onChange={e => setForm({ ...form, [field]: e.target.value })}
                         >
                           <option value="">Select {field.replaceAll("_", " ")}</option>
-                          {field === "customer_id" && lookups.customers.map(option => (
-                            <option key={option.id} value={option.id}>
-                              {option.name} ({option.email})
-                            </option>
-                          ))}
-                          {field === "plan_id" && lookups.plans.map(option => (
-                            <option key={option.id} value={option.id}>
-                              {option.name} — {currency(option.price)} / {option.billing_period}
-                            </option>
-                          ))}
-                          {field === "assigned_staff_id" && (
-                            <>
-                              <option value="">Unassigned</option>
-                              {lookups.staff
-                                .filter(option =>
-                                  !form.plan_id ||
-                                  option.assigned_plan_ids.some(
-                                    planId => String(planId) === String(form.plan_id)
-                                  )
-                                )
-                                .map(option => (
-                                <option key={option.id} value={option.id}>{option.name}</option>
-                                ))}
-                            </>
-                          )}
-                          {field === "invoice_id" && lookups.invoices.map(option => (
-                            <option key={option.id} value={option.id}>
-                              {option.invoice_number} — balance {currency(Number(option.total_amount) - Number(option.amount_paid))}
-                            </option>
-                          ))}
-                          {field === "subscription_id" && lookups.subscriptions.map(option => (
-                            <option key={option.id} value={option.id}>
-                              {option.subscription_number} — {option.customer_name} / {option.plan_name}
-                            </option>
-                          ))}
-                          {field === "tax_id" && (
-                            <>
-                              <option value="">No tax</option>
-                              {lookups.taxes.map(option => (
-                                <option key={option.id} value={option.id}>
-                                  {option.name} ({option.rate}%)
-                                </option>
-                              ))}
-                            </>
-                          )}
-                          {field === "status" &&
-                            (active === "subscriptions" || active === "quotations"
-                              ? ["draft", "quotation", "confirmed", "active", "closed"]
-                              : ["active", "inactive"]
-                            ).map(value => (
-                              <option key={value} value={value}>{value}</option>
-                            ))}
-                          {field === "billing_period" &&
-                            ["daily", "weekly", "monthly", "yearly"].map(value => (
-                              <option key={value} value={value}>{value}</option>
-                            ))}
-                          {field === "type" && active === "discounts" &&
-                            ["fixed", "percentage"].map(value => (
-                              <option key={value} value={value}>{value}</option>
-                            ))}
-                          {field === "method" &&
-                            ["bank_transfer", "upi", "card", "cash", "cheque", "other"].map(value => (
-                              <option key={value} value={value}>
-                                {value.replaceAll("_", " ")}
-                              </option>
-                            ))}
+                          {renderOptions(field)}
                         </select>
-                      ) : active === "plans" &&
-                        [
-                          "auto_close_on_end",
-                          "allow_early_close",
-                          "allow_pause",
-                          "allow_renew",
-                        ].includes(field) ? (
+                      ) : active === "plans" && PLAN_FLAGS.includes(field) ? (
                         <input
                           type="checkbox"
-                          checked={
-                            form[field] ??
-                            (field === "allow_renew")
-                          }
-                          onChange={e =>
-                            setForm({ ...form, [field]: e.target.checked })
-                          }
+                          checked={form[field] ?? field === "allow_renew"}
+                          onChange={e => setForm({ ...form, [field]: e.target.checked })}
                         />
                       ) : (
-                        <input
-                          type={
-                            (active === "staff" || active === "customers") &&
-                            field === "password"
-                              ? "password"
-                              : field === "email"
-                                ? "email"
-                                : [
-                                    "price", "cost_price", "rate", "value", "amount",
-                                    "usage_limit", "min_quantity", "payment_term_days"
-                                  ].includes(field)
-                                  ? "number"
-                                  : [
-                                      "available_from", "available_to", "start_date",
-                                      "expiry_date", "due_date", "payment_date", "end_date"
-                                    ].includes(field)
-                                    ? "date"
-                                    : "text"
-                          }
-                          min={
-                            ["min_quantity", "usage_limit", "payment_term_days"].includes(field)
-                              ? 0
-                              : [
-                                  "price", "cost_price", "rate", "value", "amount"
-                                ].includes(field)
-                                ? 0
-                                : undefined
-                          }
-                          step={
-                            ["price", "cost_price", "rate", "value", "amount"].includes(field)
-                              ? "0.01"
-                              : ["min_quantity", "usage_limit", "payment_term_days"].includes(field)
-                                ? "1"
-                                : undefined
-                          }
-                          required={
-                            ((active === "staff" || active === "customers") &&
-                              ["name", "email", "password"].includes(field)) ||
-                            (active === "plans" &&
-                              ["name", "price", "min_quantity"].includes(field)) ||
-                            (active === "taxes" && ["name", "rate"].includes(field)) ||
-                            (active === "products" &&
-                              ["name", "type", "sales_price"].includes(field)) ||
-                            (active === "discounts" &&
-                              ["code", "type", "value"].includes(field)) ||
-                            (active === "payments" && field === "amount")
-                          }
-                          minLength={
-                            (active === "staff" || active === "customers") &&
-                            field === "password"
-                              ? 9
-                              : undefined
-                          }
-                          autoComplete={
-                            (active === "staff" || active === "customers") &&
-                            field === "password"
-                              ? "new-password"
-                              : undefined
-                          }
-                          title={
-                            (active === "staff" || active === "customers") &&
-                            field === "password"
-                              ? "Use more than 8 characters with uppercase, lowercase, and a special character."
-                              : undefined
-                          }
-                          value={form[field] ?? ""}
-                          onChange={e =>
-                            setForm({ ...form, [field]: e.target.value })
-                          }
-                          placeholder={`Enter ${field.replaceAll("_", " ")}`}
-                        />
+                        renderInput(field)
                       )}
                     </label>
                   ))}
@@ -799,7 +830,13 @@ export default function AdminDashboard() {
                 </button>
 
                 <button className="primary-btn" type="submit" disabled={loading}>
-                  {loading ? "Saving..." : editingRecord ? "Update" : active === "invoices" ? "Generate invoice" : "Save"}
+                  {loading
+                    ? "Saving..."
+                    : editingRecord
+                      ? "Update"
+                      : active === "invoices"
+                        ? "Generate invoice"
+                        : "Save"}
                 </button>
               </div>
             </form>
@@ -814,10 +851,7 @@ export default function AdminDashboard() {
                 onChange={e => setSearch(e.target.value)}
                 placeholder={`Search ${active}...`}
               />
-
-              <button className="secondary-btn">
-                Search
-              </button>
+              <button type="submit" className="secondary-btn">Search</button>
             </form>
           )}
 
@@ -829,9 +863,7 @@ export default function AdminDashboard() {
                 <thead>
                   <tr>
                     {currentFields.map(field => (
-                      <th key={field}>
-                        {field.replaceAll("_", " ")}
-                      </th>
+                      <th key={field}>{field.replaceAll("_", " ")}</th>
                     ))}
                     {["plans", "products"].includes(active) && <th>Staff assignment</th>}
                     {active === "invoices" && <th>Invoice PDF</th>}
@@ -844,30 +876,28 @@ export default function AdminDashboard() {
                     <tr key={record.id || index}>
                       {currentFields.map(field => (
                         <td key={field}>
-                          {record[field] ?? "—"}
+                          {field === "status" && record[field] ? (
+                            <span
+                              className={`status-badge status-${String(record[field])
+                                .toLowerCase()
+                                .replace(/[^a-z0-9]+/g, "-")}`}
+                            >
+                              {formatCell(record[field])}
+                            </span>
+                          ) : formatCell(record[field])}
                         </td>
                       ))}
-                      {active === "plans" && (
-                        <td>
-                          <button
-                            type="button"
-                            className="secondary-btn"
-                            onClick={() => openStaffAssignment(record)}
-                          >
-                            Assign staff ({record.assigned_staff_count ?? 0})
-                          </button>
-                        </td>
-                      )}
-                      {active === "products" && (
+                      {["plans", "products"].includes(active) && (
                         <td>
                           <button
                             type="button"
                             className="secondary-btn"
                             onClick={() =>
-                              openStaffAssignment({
-                                ...record,
-                                assignmentType: "product"
-                              })
+                              openStaffAssignment(
+                                active === "products"
+                                  ? { ...record, assignmentType: "product" }
+                                  : record
+                              )
                             }
                           >
                             Assign staff ({record.assigned_staff_count ?? 0})
@@ -943,6 +973,8 @@ export default function AdminDashboard() {
               {loading && <p className="loading-text">Loading...</p>}
             </div>
           )}
+
+          {/* STAFF ASSIGNMENT DIALOG */}
 
           {staffAssignmentPlan && (
             <div
