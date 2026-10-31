@@ -1,6 +1,49 @@
-// React side: all calls to the backend live here.
-const API = import.meta.env.VITE_API_URL;
+// React side: all auth calls to the backend live here, and so does the saved login session.
+const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
+/* ---------- session (single source of truth for the token) ---------- */
+export const TOKEN_KEY = "token";
+export const USER_KEY = "user";
+
+export function saveSession({ token, user }) {
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+export function getToken() {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function getUser() {
+  try {
+    return JSON.parse(localStorage.getItem(USER_KEY));
+  } catch {
+    return null;
+  }
+}
+
+export function clearSession() {
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+// Where each role lands after login.
+export const homePathForRole = (role) =>
+  ({ admin: "/admin", staff: "/staff", customer: "/customer" })[role] || "/login";
+
+/* ---------- requests ---------- */
 async function post(path, body) {
   try {
     const r = await fetch(`${API}${path}`, {
@@ -27,5 +70,10 @@ export const registerRequest = (form) =>
     password: form.password,
   });
 
-export const loginRequest = ({ identifier, password, role }) =>
-  post("/api/auth/login", { email: identifier, password, role });
+// On success the token and user are saved here, so every page (and customerApi)
+// reads the same values no matter how the Login page stores things.
+export async function loginRequest({ identifier, password, role }) {
+  const res = await post("/api/auth/login", { email: identifier, password, role });
+  if (res.ok && res.token) saveSession({ token: res.token, user: res.user });
+  return res;
+}

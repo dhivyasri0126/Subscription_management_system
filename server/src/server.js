@@ -4,13 +4,14 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { pool } from "./db.js";
 import authRoutes from "./routes/auth.js";
+import customerRoutes from "./routes/customer.js";
 
 const app = express();
 
 app.use(helmet());
 app.use(cors({ origin: process.env.CLIENT_ORIGIN, credentials: true }));
 app.use(express.json({ limit: "10kb" }));
-
+app.use("/api/customer", customerRoutes);
 // Quick check: open http://localhost:5000/api/health
 app.get("/api/health", async (_req, res) => {
   try {
