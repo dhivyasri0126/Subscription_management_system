@@ -10,7 +10,7 @@ export default function AuthLayout({ title, subtitle, footer, children }) {
       <aside className="auth-aside">
         <div className="brand">
           <span className="brand-mark" aria-hidden="true" />
-          Subscription Manager
+          SubscriptionManager
         </div>
 
         <div className="aside-body">
@@ -35,7 +35,7 @@ export default function AuthLayout({ title, subtitle, footer, children }) {
           </ul>
         </div>
 
-        <div className="aside-foot">© {new Date().getFullYear()} Subscription Manager</div>
+        <div className="aside-foot">© {new Date().getFullYear()} SubscriptionManager</div>
       </aside>
 
       <main className="auth-main">

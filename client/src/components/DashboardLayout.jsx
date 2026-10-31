@@ -17,7 +17,7 @@ export default function DashboardLayout({ role, children }) {
       <header className="dash-bar">
         <div className="dash-brand">
           <span className="dash-mark" aria-hidden="true" />
-          Subscription Manager
+          SubscriptionManager
         </div>
 
         <div className="dash-user">

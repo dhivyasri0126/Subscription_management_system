@@ -28,7 +28,7 @@ export default function ReceiptDetail() {
       <article className="cx-card cx-doc cx-doc--narrow">
         <div className="cx-doc-head">
           <div>
-            <h2>Brightloop Software</h2>
+            <h2>SubscriptionManager</h2>
             <p className="cx-muted">Payment receipt</p>
           </div>
           <div className="cx-doc-meta">

@@ -31,13 +31,13 @@ export default function CustomerLayout() {
           ☰
         </button>
         <span className="cx-brand">
-          <i className="cx-brand-mark" aria-hidden="true" /> Brightloop
+          <i className="cx-brand-mark" aria-hidden="true" /> SubscriptionManager
         </span>
       </header>
 
       <aside className={`cx-sidebar cx-noprint ${open ? "open" : ""}`}>
         <div className="cx-brand cx-brand--side">
-          <i className="cx-brand-mark" aria-hidden="true" /> Brightloop
+          <i className="cx-brand-mark" aria-hidden="true" /> SubscriptionManager
         </div>
 
         <nav>

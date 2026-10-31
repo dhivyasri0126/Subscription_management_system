@@ -637,7 +637,7 @@ export default function AdminDashboard() {
 
         <header className="admin-header">
           <div>
-            <span>Subscription Manager / </span>
+            <span>SubscriptionManager / </span>
             <strong>{menu.find(item => item.id === active)?.name}</strong>
           </div>
 
@@ -663,7 +663,7 @@ export default function AdminDashboard() {
 
           <div className="page-heading">
             <div>
-              <p className="eyebrow">BRIGHTLOOP SOFTWARE</p>
+              <p className="eyebrow">SUBSCRIPTIONMANAGER</p>
 
               <h1>
                 {active === "dashboard"

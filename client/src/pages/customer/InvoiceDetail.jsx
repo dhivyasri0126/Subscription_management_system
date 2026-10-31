@@ -28,7 +28,7 @@ export default function InvoiceDetail() {
       <article className="cx-card cx-doc">
         <div className="cx-doc-head">
           <div>
-            <h2>Brightloop Software</h2>
+            <h2>SubscriptionManager</h2>
             <p className="cx-muted">Tax invoice</p>
           </div>
           <div className="cx-doc-meta">

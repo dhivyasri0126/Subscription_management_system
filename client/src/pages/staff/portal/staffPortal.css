@@ -614,6 +614,236 @@
   margin: 0 auto;
 }
 
+/* Premium SubscriptionManager palette with refined, readable portal surfaces. */
+.sp-app {
+  --ink: #172b3a;
+  --paper: #f4f7fa;
+  --card: #ffffff;
+  --line: #e2e8f0;
+  --muted: #64748b;
+  --teal: #087f83;
+  --teal-d: #06696e;
+  --amber: #d9a832;
+  --red: #bd514a;
+  --green: #168263;
+  background:
+    radial-gradient(ellipse at 86% 0%, rgba(56, 191, 167, 0.075), transparent 34rem),
+    var(--paper);
+  font-size: 15px;
+}
+
+.sp-app .sp-side {
+  background:
+    radial-gradient(ellipse at 0% 0%, rgba(56, 191, 167, 0.14), transparent 19rem),
+    linear-gradient(160deg, #102a43 0%, #0b1f33 100%);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset -1px 0 rgba(255, 255, 255, 0.035), 10px 0 30px rgba(11, 31, 51, 0.06);
+}
+
+.sp-app .sp-brand span { color: #38bfa7; }
+
+.sp-app .sp-side a {
+  border: 1px solid transparent;
+  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.sp-app .sp-side a:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.07);
+  transform: translateX(2px);
+}
+
+.sp-app .sp-side a.active {
+  color: #ffffff;
+  background: linear-gradient(110deg, #087f83, #16a995);
+  border-color: rgba(119, 234, 212, 0.25);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.2), 0 6px 16px rgba(5, 120, 116, 0.2);
+}
+
+.sp-app main { padding: 36px clamp(22px, 3.2vw, 44px); }
+.sp-app h1 { font-size: clamp(29px, 2.8vw, 34px); letter-spacing: -.8px; }
+.sp-app h2 { font-size: 18px; }
+
+.sp-app .sp-kpis > div,
+.sp-app .sp-panel {
+  position: relative;
+  background: linear-gradient(145deg, #ffffff 0%, #fbfdfd 100%);
+  border-color: var(--line);
+  border-radius: 14px;
+  box-shadow: 0 12px 30px rgba(16, 42, 67, 0.055), 0 2px 6px rgba(16, 42, 67, 0.03);
+  transition: border-color 170ms ease, box-shadow 170ms ease, transform 170ms ease;
+}
+
+.sp-app .sp-kpis > div:hover,
+.sp-app .sp-panel:hover {
+  border-color: #c9e6e2;
+  box-shadow: 0 16px 34px rgba(16, 42, 67, 0.09), 0 3px 8px rgba(16, 42, 67, 0.04);
+  transform: translateY(-2px);
+}
+
+.sp-app .sp-kpis small { font-size: 14px; }
+.sp-app .sp-kpis b { color: #102a43; font-size: 27px; }
+.sp-app .sp-kpis span { font-size: 13px; }
+.sp-app .sp-panel > p,
+.sp-app .sp-muted { font-size: 14px; }
+
+.sp-app .sp-btn {
+  min-height: 40px;
+  padding: 9px 16px;
+  border: 1px solid #087f83;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #38bfa7, #087f83 82%);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.28), 0 5px 13px rgba(8, 127, 131, 0.14);
+  transition: background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.sp-app .sp-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2bad98, #06696e 82%);
+  box-shadow: 0 8px 17px rgba(8, 127, 131, 0.2);
+  transform: translateY(-1px);
+}
+
+.sp-app .sp-btn.sp-ghost {
+  color: var(--ink);
+  background: #ffffff;
+  border-color: var(--line);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.5);
+}
+
+.sp-app .sp-btn.sp-ghost:hover:not(:disabled) {
+  color: var(--teal-d);
+  background: #f3f8fa;
+  border-color: #b7d9d5;
+}
+
+.sp-app .sp-side .sp-btn.sp-ghost {
+  color: #ffffff;
+  background: transparent;
+  border-color: #476170;
+  box-shadow: none;
+}
+
+.sp-app .sp-btn.sp-danger {
+  background: #bd514a;
+  border-color: #bd514a;
+}
+
+.sp-app :focus-visible {
+  outline: 3px solid rgba(8, 127, 131, 0.25);
+  outline-offset: 3px;
+}
+
+.sp-app .sp-chart { height: 245px; }
+.sp-app .sp-grid-line { stroke: #e7edf2; }
+.sp-app .sp-axis { fill: #64748b; font-size: 12px; }
+.sp-app .sp-bar { fill: #a9ddd3; }
+.sp-app .sp-bar-now { fill: #087f83; }
+.sp-app .sp-donut-text { fill: #172b3a; }
+
+.sp-app .sp-queue a {
+  background: linear-gradient(145deg, #ffffff, #f8fbfc);
+  border-left-color: #087f83;
+  border-radius: 11px;
+  transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.sp-app .sp-queue a:hover {
+  background: #eff8f6;
+  box-shadow: 0 7px 17px rgba(16, 42, 67, 0.06);
+}
+
+.sp-app table {
+  background: #ffffff;
+  border-color: var(--line);
+  border-radius: 11px;
+}
+
+.sp-app th,
+.sp-app td { padding: 14px 15px; }
+
+.sp-app th {
+  background: #f7fafc;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.sp-app td { font-size: 14px; }
+.sp-app tr { transition: background-color 130ms ease; }
+.sp-app tbody tr:hover { background: #f3f8fa; }
+.sp-app td a { color: #087f83; }
+
+.sp-app .sp-badge {
+  padding: 4px 11px;
+  border: 1px solid transparent;
+  font-size: 13px;
+}
+
+.sp-app .sp-b-active,
+.sp-app .sp-b-paid,
+.sp-app .sp-b-confirmed {
+  background: #e8f6f1;
+  color: #08715f;
+  border-color: rgba(8, 113, 95, 0.12);
+}
+
+.sp-app .sp-b-quotation,
+.sp-app .sp-b-draft {
+  background: #eaf2f8;
+  color: #315a78;
+  border-color: rgba(49, 90, 120, 0.12);
+}
+
+.sp-app .sp-b-closed,
+.sp-app .sp-b-cancelled {
+  background: #edf1f4;
+  color: #53616d;
+}
+
+.sp-app .sp-b-overdue {
+  background: #fff0ef;
+  color: #a33b35;
+  border-color: rgba(163, 59, 53, 0.12);
+}
+
+.sp-app .sp-facts b { font-size: 24px; }
+.sp-app .sp-kv { font-size: 15px; }
+.sp-app .sp-kv small { margin-bottom: 4px; font-size: 13px; }
+.sp-app .sp-totals { font-size: 15px; }
+
+.sp-app .sp-overlay {
+  background: rgba(4, 17, 29, 0.58);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.sp-app .sp-modal {
+  color: var(--ink);
+  background: linear-gradient(145deg, #ffffff, #f9fcfc);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 16px;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.25), inset 0 1px rgba(255, 255, 255, 0.8);
+}
+
+.sp-app input,
+.sp-app select {
+  min-height: 44px;
+  background: #ffffff;
+  border-color: var(--line);
+  border-radius: 9px;
+  font-size: 15px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.sp-app input:focus,
+.sp-app select:focus {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(8, 127, 131, 0.14);
+  outline: none;
+}
+
+.sp-app label { font-size: 14px; }
+.sp-app .sp-pager { font-size: 14px; }
+
 /* RESPONSIVE */
 
 @media (max-width: 1100px) {
