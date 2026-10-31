@@ -9,7 +9,6 @@ export const BUSINESS_TYPES = [
   "IT / Software", "Manufacturing", "Services", "Other",
 ];
 
-// Same rules as the Signup form: the server never trusts the browser.
 export const registerSchema = z.object({
   name: z.string().trim().min(2, "Enter the customer name.").max(100),
   email: z.string().trim().toLowerCase().email("Enter a valid email address.").max(150),
@@ -21,7 +20,13 @@ export const registerSchema = z.object({
   businessType: z.enum(BUSINESS_TYPES, {
     errorMap: () => ({ message: "Select your business type." }),
   }),
-  password: z.string().min(8, "Use at least 8 characters.").max(72),
+  password: z
+    .string()
+    .min(9, "Use more than 8 characters.")
+    .max(72)
+    .regex(/[a-z]/, "Include a lowercase letter.")
+    .regex(/[A-Z]/, "Include an uppercase letter.")
+    .regex(/[^A-Za-z0-9]/, "Include a special character."),
 });
 
 export class ServiceError extends Error {
@@ -64,7 +69,11 @@ export async function registerCustomer(input) {
     await client.query("COMMIT");
     return rows[0];
   } catch (err) {
-    await client.query("ROLLBACK").catch(() => {});
+    try {
+      await client.query("ROLLBACK");
+    } catch (rollbackError) {
+      console.error("Customer registration rollback failed:", rollbackError);
+    }
     if (err.code === "23505") {
       throw new ServiceError(409, "An account with this email already exists.", {
         email: "This email is already registered.",
