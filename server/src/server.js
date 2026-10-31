@@ -4,6 +4,8 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { pool } from "./db.js";
 import authRoutes from "./routes/auth.js";
+import staffRoutes from "./routes/staff.js";
+import { errorHandler } from "./utils/http.js";
 
 const app = express();
 
@@ -23,14 +25,12 @@ app.get("/api/health", async (_req, res) => {
 });
 
 app.use("/api/auth", rateLimit({ windowMs: 15 * 60 * 1000, limit: 50 }), authRoutes);
+app.use("/api/staff", staffRoutes);
 
 app.use((_req, res) => res.status(404).json({ ok: false, error: "Not found." }));
 
-// Catch-all so an unexpected error never crashes the server
-app.use((err, _req, res, _next) => {
-  console.error(err);
-  res.status(500).json({ ok: false, error: "Something went wrong. Please try again." });
-});
+// Must be last: handles errors from every route above (also the old catch-all's job)
+app.use(errorHandler);
 
 const port = process.env.PORT || 5000;
 app.listen(port, () => console.log(`API running on http://localhost:${port}`));
