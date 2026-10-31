@@ -15,6 +15,14 @@ const BUSINESS_TYPES = [
   "Other",
 ];
 
+const EyeIcon = ({ off }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" />
+    <circle cx="12" cy="12" r="3" />
+    {off && <path d="M4 4l16 16" />}
+  </svg>
+);
+
 export default function Signup() {
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -23,6 +31,7 @@ export default function Signup() {
     name: "",
     email: "",
     phone: "",
+    address: "",
     businessType: "",
     password: "",
     confirm: "",
@@ -30,8 +39,13 @@ export default function Signup() {
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPw, setShowPw] = useState(false);
 
-  const update = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const update = (e) => {
+    const { name, value } = e.target;
+    setForm({ ...form, [name]: value });
+    if (errors[name]) setErrors({ ...errors, [name]: undefined }); // clear error as the user fixes it
+  };
 
   const validate = () => {
     const e = {};
@@ -39,6 +53,7 @@ export default function Signup() {
     if (!/^\S+@\S+\.\S+$/.test(form.email)) e.email = "Enter a valid email address.";
     const digits = form.phone.replace(/^\+91/, "").replace(/[\s-]/g, "");
     if (!/^[6-9]\d{9}$/.test(digits)) e.phone = "Enter a valid 10-digit mobile number.";
+    if (form.address.trim().length < 5) e.address = "Enter your address.";
     if (!form.businessType) e.businessType = "Select your business type.";
     if (form.password.length < 8) e.password = "Use at least 8 characters.";
     if (form.confirm !== form.password) e.confirm = "Passwords do not match.";
@@ -56,9 +71,33 @@ export default function Signup() {
     const res = await register(form);
     setLoading(false);
 
-    if (!res.ok) return setServerError(res.error);
+    if (!res.ok) {
+      if (res.fields) setErrors(res.fields); // e.g. "This email is already registered."
+      return setServerError(res.error);
+    }
     navigate("/login", { replace: true });
   };
+
+  const passwordInput = (name, autoComplete) => (p) => (
+    <div className="pw-wrap">
+      <input
+        {...p}
+        name={name}
+        type={showPw ? "text" : "password"}
+        autoComplete={autoComplete}
+        value={form[name]}
+        onChange={update}
+      />
+      <button
+        type="button"
+        className="pw-toggle"
+        onClick={() => setShowPw(!showPw)}
+        aria-label={showPw ? "Hide passwords" : "Show passwords"}
+      >
+        <EyeIcon off={showPw} />
+      </button>
+    </div>
+  );
 
   return (
     <AuthLayout
@@ -79,7 +118,15 @@ export default function Signup() {
 
         <FormField label="Email address" error={errors.email}>
           {(p) => (
-            <input {...p} name="email" type="email" autoComplete="email" value={form.email} onChange={update} />
+            <input
+              {...p}
+              name="email"
+              type="email"
+              autoComplete="email"
+              value={form.email}
+              onChange={update}
+              placeholder="you@company.com"
+            />
           )}
         </FormField>
 
@@ -113,17 +160,27 @@ export default function Signup() {
           </FormField>
         </div>
 
+        <FormField label="Address" error={errors.address}>
+          {(p) => (
+            <input
+              {...p}
+              name="address"
+              type="text"
+              autoComplete="street-address"
+              value={form.address}
+              onChange={update}
+              placeholder="Street, area, city, pincode"
+            />
+          )}
+        </FormField>
+
         <div className="row-2">
           <FormField label="Password" error={errors.password}>
-            {(p) => (
-              <input {...p} name="password" type="password" autoComplete="new-password" value={form.password} onChange={update} />
-            )}
+            {passwordInput("password", "new-password")}
           </FormField>
 
           <FormField label="Confirm password" error={errors.confirm}>
-            {(p) => (
-              <input {...p} name="confirm" type="password" autoComplete="new-password" value={form.confirm} onChange={update} />
-            )}
+            {passwordInput("confirm", "new-password")}
           </FormField>
         </div>
 
@@ -134,6 +191,7 @@ export default function Signup() {
         )}
 
         <button className="btn-primary" type="submit" disabled={loading}>
+          {loading && <span className="spinner" aria-hidden="true" />}
           {loading ? "Creating account…" : "Create account"}
         </button>
       </form>

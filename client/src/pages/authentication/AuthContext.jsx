@@ -1,33 +1,7 @@
 import { createContext, useContext, useState } from "react";
+import { registerRequest, loginRequest } from "../../services/authApi"; // adjust the path if your folders differ
 
-/*
-  DEMO AUTH (localStorage only).
-  Replace the bodies of register() and login() with your real API calls
-  (fetch / axios) when your backend is ready.
-*/
-
-const USERS_KEY = "sms_users";
 const SESSION_KEY = "sms_session";
-
-const seedUsers = [
-  { id: 1, name: "Admin", username: "admin", email: "admin@demo.com", password: "admin123", role: "admin" },
-  { id: 2, name: "Staff", username: "staff", email: "staff@demo.com", password: "staff123", role: "staff" },
-];
-
-function readUsers() {
-  try {
-    const raw = localStorage.getItem(USERS_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {
-    /* ignore */
-  }
-  try {
-    localStorage.setItem(USERS_KEY, JSON.stringify(seedUsers));
-  } catch {
-    /* ignore */
-  }
-  return seedUsers;
-}
 
 function readSession() {
   try {
@@ -40,55 +14,30 @@ function readSession() {
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(readSession);
+  const [session, setSession] = useState(readSession); // { token, user }
 
-  const register = async ({ name, email, phone, businessType, password }) => {
-    const users = readUsers();
-    const cleanEmail = email.trim().toLowerCase();
+  const register = (form) => registerRequest(form);
 
-    if (users.some((u) => u.email === cleanEmail)) {
-      return { ok: false, error: "An account with this email already exists." };
-    }
+  // Checks email, password and role against the database (users + customers).
+  const login = async (form) => {
+    const res = await loginRequest(form);
+    if (!res.ok) return res;
 
-    const newUser = {
-      id: Date.now(),
-      name: name.trim(),
-      username: cleanEmail.split("@")[0],
-      email: cleanEmail,
-      phone: phone.trim(),
-      businessType,
-      password,
-      role: "customer", // public signup always creates a customer
-    };
-
-    localStorage.setItem(USERS_KEY, JSON.stringify([...users, newUser]));
-    return { ok: true };
-  };
-
-  const login = async ({ identifier, password, role }) => {
-    const id = identifier.trim().toLowerCase();
-    const found = readUsers().find(
-      (u) => (u.email === id || u.username.toLowerCase() === id) && u.password === password
-    );
-
-    if (!found) return { ok: false, error: "Incorrect username/email or password." };
-    if (found.role !== role) {
-      return { ok: false, error: `This account is not registered as ${role}.` };
-    }
-
-    const { password: _pw, ...safeUser } = found;
-    localStorage.setItem(SESSION_KEY, JSON.stringify(safeUser));
-    setUser(safeUser);
-    return { ok: true, user: safeUser };
+    const next = { token: res.token, user: res.user };
+    localStorage.setItem(SESSION_KEY, JSON.stringify(next));
+    setSession(next);
+    return { ok: true, user: res.user };
   };
 
   const logout = () => {
     localStorage.removeItem(SESSION_KEY);
-    setUser(null);
+    setSession(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, register, login, logout }}>
+    <AuthContext.Provider
+      value={{ user: session?.user ?? null, token: session?.token ?? null, register, login, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );
